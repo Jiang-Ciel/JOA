@@ -4,8 +4,13 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-Digits = 60
+Digits = 200
 Cycle = 250
+font = {'family': 'serif',
+        'color': 'black',
+        'weight': 'normal',
+        'size': 14,
+        }
 def Evaluate(estimate):
     estimate = estimate.reshape(1, Digits)
     A = la.norm(estimate)** 2
@@ -13,10 +18,10 @@ def Evaluate(estimate):
     return 10 * Digits + A - B.sum()
   
 def MINE(Start: np.ndarray):
-    Cycle = 250
-    Digits = 60
+    # Cycle = 250
+    # Digits = 1000
     a, b = 20, 10
-    MemNum = 100
+    MemNum = 300
     x0 = mat.repmat(Start, MemNum, 1)
     Dir = a * np.random.rand(MemNum, Digits) - b
     x0 += Dir 
@@ -29,7 +34,7 @@ def MINE(Start: np.ndarray):
     for inner in range(MemNum):
         Hbestv[inner,:] = Evaluate(x0[inner,:])
         Hbest[inner,:] = x0[inner,:]
-    T0, Tend = 0.45, 0.9
+    T0, Tend = 0.45, 0.7
     A = (Tend - T0) / (Cycle ** 0.5)
     B = T0
     H = []
@@ -38,6 +43,13 @@ def MINE(Start: np.ndarray):
     P = []
     R = []
     Po = []
+    Ratio = []
+    Bi = []
+    # Combine = np.zeros((MemNum, Digits * MemNum))
+    # Row, Column = np.indices(Combine.shape)
+    # Row *= Digits
+    # for dif in range(Digits):
+        # Combine[Row == Column - dif] = 1
     for i in range(Cycle):
         radius = np.std(Hbest, axis=0)
         po = np.mean(Hbest,axis=0)
@@ -47,7 +59,9 @@ def MINE(Start: np.ndarray):
         # Pace = 40 / (1 + np.exp(7 * (i - (4*Cycle /3 )) / Cycle))
         Judge = 1 / (1 + np.exp(Pace /(radius+1e-15) - 1))
         Pace = 4 * radius *Judge
-        Bias = 1.2 * Judge
+        Bias = 1.6 * Judge
+        Ratio.append(Pace / radius)
+        Bi.append(Bias)
         P.append(Pace)
         R.append(radius)
         # Bias = 1.2 / (1 + np.exp(-(i - (Cycle / 3)) / Cycle))
@@ -86,29 +100,43 @@ def MINE(Start: np.ndarray):
                 Hbest[Inner,:] = x0[Inner,:]
                 Hbestv[Inner,:] = Check
         h = Hbest[np.argmin(Hbestv),:].tolist()
+        print("MINE", i + 1)
+        print("--------------------")
+        print("Obj.Func:", np.min(Hbestv))
+        print("Componets MAX:", np.max(np.abs(Hbest[np.argmin(Hbestv),:])))
+        print("Componets MIN:", np.min(np.abs(Hbest[np.argmin(Hbestv),:])))
+        print('====================')
         h.append(Hbestv.min())
         H.append(h)
     Po = np.array(Po)
     plt.figure("MINE：Time-Position")
     for i in range(Digits):
         plt.plot(np.arange(Cycle),Po[:,i])
+    plt.xlabel("Times")  
+    plt.ylabel("Components") 
     plt.figure("MINE：Time-Radius/Pace")
     Radius,=plt.plot(range(Cycle), R, label="Radius")
     Pace,=plt.plot(range(Cycle), P,linestyle=":", label="Pace")
     plt.legend(loc="upper right")
     plt.xlabel("Times")  
     plt.ylabel("Value")
+    plt.figure("MINE：Time-Radius/Pace,Bias")
+    ratio,=plt.plot(range(Cycle), Ratio, linestyle=":",label="Pace/Radius")
+    Bias,=plt.plot(range(Cycle), Bi, label="Bias")
+    plt.legend(loc="upper right")
+    plt.xlabel("Steps",fontdict=font)  
+    plt.ylabel("Value of 'Pace/Radius' and 'Bias'",fontdict=font)
     H = np.array(H)
     value = H[:,Digits]
     value.reshape(1,Cycle)
     return value,Hbestv.min(),Hbest[np.argmin(Hbestv),:]
 
 def PSO(Start:np.ndarray):
-    GroupNum = 100
-    digits = 60
-    Coefficient = mat.repmat(Start,GroupNum,1) + 20* np.random.rand(GroupNum, digits) - 10
-    v0 = 40 * np.random.rand(GroupNum, digits) - 20
-    Cycle = 250
+    GroupNum = 300
+    # Digits = 60
+    Coefficient = mat.repmat(Start,GroupNum,1) + 20* np.random.rand(GroupNum, Digits) - 10
+    v0 = 40 * np.random.rand(GroupNum, Digits) - 20
+    # Cycle = 250
     pbest = Coefficient.view()
     pbestv = np.zeros((GroupNum, 1))
     pbestv1 = np.zeros((GroupNum, 1))
@@ -146,20 +174,26 @@ def PSO(Start:np.ndarray):
         v0 = v1.view()
         gbest = mat.repmat(pbest[np.argmin(pbestv),:], GroupNum, 1)
         h = pbest[np.argmin(pbestv),:].tolist()
+        # print("PSO", i)
+        # print("--------------------")
+        # print("Obj.Func:", np.min(pbestv))
+        # print("Components MAX:", np.max(np.abs(pbest[np.argmin(pbestv),:])))
+        # print("Components MIN:", np.min(np.abs(pbest[np.argmin(pbestv),:])))
+        # print('====================')
         h.append(pbestv.min())
         H.append(h)
     H = np.array(H)
     out = pd.DataFrame(H)
     out.to_excel("Record.xlsx",sheet_name="PSO")
-    value = H[:, digits]
+    value = H[:, Digits]
     value.reshape(1, Cycle)
     Po = np.array(Po)
     R = np.array(R)
     plt.figure("PSO：Time-Position")
-    for i in range(digits):
+    for i in range(Digits):
         plt.plot(np.arange(Cycle), Po[:, i])
     plt.xlabel("Times")  
-    plt.ylabel("Value") 
+    plt.ylabel("Components") 
     # plt.figure("PSO：Time-Radius/Pace")
     # Pace,=plt.plot(range(Cycle), P, label="Pace")
     # Radius,=plt.plot(range(Cycle), R, label="Radius")
@@ -180,5 +214,11 @@ print("Function:PSO ", "Evaluation:", vPSO)
 print("Location:", LocPSO)
 plt.legend(loc='upper right')
 plt.xlabel("times")  
-plt.ylabel("f(x)") 
+plt.ylabel("f(x)")
+plt.figure("Components Final")
+M = plt.scatter(range(Digits), LocMINE,label="MINE")
+P = plt.scatter(range(Digits), LocPSO, label="PSO")
+plt.legend(loc='upper right')
+plt.xlabel("digits")  
+plt.ylabel("Components")
 plt.show()

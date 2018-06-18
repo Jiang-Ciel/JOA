@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 def Evaluate(x):
     return la.norm(x)
-Digits = 15
+Digits = 30
 Cycle = 100
 font = {'family': 'serif',
         'color': 'black',
@@ -177,5 +177,11 @@ print("Function:PSO ", "Evaluation:", vPSO)
 print("Location:", LocPSO)
 plt.legend(loc='upper right')
 plt.xlabel("Step",fontdict=font)  
-plt.ylabel("Value of object function", fontdict=font)  
+plt.ylabel("Value of object function", fontdict=font)
+plt.figure("Components Final")
+M = plt.scatter(range(Digits), LocMINE,label="MINE")
+P = plt.scatter(range(Digits), LocPSO, label="PSO")
+plt.legend(loc='upper right')
+plt.xlabel("digits")  
+plt.ylabel("Components")
 plt.show()
