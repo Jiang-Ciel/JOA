@@ -5,16 +5,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 Digits = 200
-Cycle = 250
 MemNum = 300
+Cycle = 250
 font = {'family': 'serif',
         'color': 'black',
         'weight': 'normal',
         'size': 14,
         }
 def Evaluate(x):
-    return la.norm(x)
-  
+    i = np.arange(Digits) + 1
+    y = np.cos(x / (i ** 0.5))
+    return 1 + la.norm(x)**2/4000 - y.prod()
+
 def Get_Direction(Ref, x0, Hbelief):
     base = Ref - np.array(x0)
     Normal = la.norm(base, axis=1).reshape(MemNum,1)
@@ -115,15 +117,12 @@ def MINE(Start: np.ndarray):
     H = np.array(H)
     value = H[:,Digits]
     value.reshape(1,Cycle)
-    return value,Hbestv.min(),Hbest[np.argmin(Hbestv),:]
-
+    return value,Hbestv.min(),Hbest[np.argmin(Hbestv),:]  
 
 def PSO(Start:np.ndarray):
     GroupNum = 300
-    # Digits = 60
     Coefficient = mat.repmat(Start,GroupNum,1) + 20* np.random.rand(GroupNum, Digits) - 10
     v0 = 40 * np.random.rand(GroupNum, Digits) - 20
-    # Cycle = 250
     pbest = Coefficient.view()
     pbestv = np.zeros((GroupNum, 1))
     pbestv1 = np.zeros((GroupNum, 1))
@@ -161,12 +160,6 @@ def PSO(Start:np.ndarray):
         v0 = v1.view()
         gbest = mat.repmat(pbest[np.argmin(pbestv),:], GroupNum, 1)
         h = pbest[np.argmin(pbestv),:].tolist()
-        # print("PSO", i)
-        # print("--------------------")
-        # print("Obj.Func:", np.min(pbestv))
-        # print("Components MAX:", np.max(np.abs(pbest[np.argmin(pbestv),:])))
-        # print("Components MIN:", np.min(np.abs(pbest[np.argmin(pbestv),:])))
-        # print('====================')
         h.append(pbestv.min())
         H.append(h)
     H = np.array(H)
@@ -181,12 +174,6 @@ def PSO(Start:np.ndarray):
         plt.plot(np.arange(Cycle), Po[:, i])
     plt.xlabel("Times")  
     plt.ylabel("Components") 
-    # plt.figure("PSO：Time-Radius/Pace")
-    # Pace,=plt.plot(range(Cycle), P, label="Pace")
-    # Radius,=plt.plot(range(Cycle), R, label="Radius")
-    # plt.legend(loc="upper right")
-    # plt.xlabel("Times")  
-    # plt.ylabel("Value")
     return value,pbestv.min(),pbest[np.argmin(pbestv),:]
 
 VMINE,vMINE,LocMINE = MINE(500*np.ones((1,Digits)))
@@ -196,16 +183,16 @@ MINE, =plt.plot(range(Cycle), VMINE,color='red',label="MINE")
 PSO, =plt.plot(range(Cycle), VPSO,linestyle=":", color="blue", label="PSO")
 print("Function:MINE", "Evaluation:", vMINE)
 print("Location:", LocMINE)
-print("=====================")
+print("===========plt.figure("Components Final")
+M = plt.scatter(range(Digits), LocMINE,label="MINE")
+P = plt.scatter(range(Digits), LocPSO, label="PSO")
+plt.legend(loc='upper right')
+plt.xlabel("digits")  
+plt.ylabel("Components")==========")
 print("Function:PSO ", "Evaluation:", vPSO)
 print("Location:", LocPSO)
 plt.legend(loc='upper right')
 plt.xlabel("times")  
 plt.ylabel("f(x)")
-plt.figure("Components Final")
-M = plt.scatter(range(Digits), LocMINE,label="MINE")
-P = plt.scatter(range(Digits), LocPSO, label="PSO")
-plt.legend(loc='upper right')
-plt.xlabel("digits")  
-plt.ylabel("Components")
+
 plt.show()

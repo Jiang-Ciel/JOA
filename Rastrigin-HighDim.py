@@ -4,7 +4,9 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from time import time
 Digits = 200
+MemNum = 300
 Cycle = 250
 font = {'family': 'serif',
         'color': 'black',
@@ -16,12 +18,23 @@ def Evaluate(estimate):
     A = la.norm(estimate)** 2
     B = 10 * np.cos(estimate * 2 * np.pi)
     return 10 * Digits + A - B.sum()
-  
+
+def Get_Direction(Ref, x0, Hbelief):
+    base = Ref - np.array(x0)
+    Normal = la.norm(base, axis=1).reshape(MemNum,1)
+    det = Normal.argmin()
+    base = np.delete(base, det, axis=0)
+    Normal = np.delete(Normal, det, axis=0)
+    base = base[0:Digits,:]
+    Normal = Normal[0:Digits,:]
+    if base.dtype != "float":
+        base = base.astype("float")
+    base = base / Normal
+    return np.dot(np.array(Hbelief), base).reshape(Digits,)
+
 def MINE(Start: np.ndarray):
-    # Cycle = 250
-    # Digits = 1000
     a, b = 20, 10
-    MemNum = 300
+    # MemNum = 0
     x0 = mat.repmat(Start, MemNum, 1)
     Dir = a * np.random.rand(MemNum, Digits) - b
     x0 += Dir 
@@ -45,18 +58,13 @@ def MINE(Start: np.ndarray):
     Po = []
     Ratio = []
     Bi = []
-    # Combine = np.zeros((MemNum, Digits * MemNum))
-    # Row, Column = np.indices(Combine.shape)
-    # Row *= Digits
-    # for dif in range(Digits):
-        # Combine[Row == Column - dif] = 1
+    Direction = np.zeros((MemNum, Digits))
     for i in range(Cycle):
         radius = np.std(Hbest, axis=0)
         po = np.mean(Hbest,axis=0)
         Po.append(po)
         radius = la.norm(radius)
         T = B + A * (i ** 0.5)
-        # Pace = 40 / (1 + np.exp(7 * (i - (4*Cycle /3 )) / Cycle))
         Judge = 1 / (1 + np.exp(Pace /(radius+1e-15) - 1))
         Pace = 4 * radius *Judge
         Bias = 1.6 * Judge
@@ -64,41 +72,23 @@ def MINE(Start: np.ndarray):
         Bi.append(Bias)
         P.append(Pace)
         R.append(radius)
-        # Bias = 1.2 / (1 + np.exp(-(i - (Cycle / 3)) / Cycle))
         Sort = np.argsort(Hbestv, axis=0)
         Chaos = 0.4 * np.random.random(Digits) + 0.8
-        Chaos.reshape(Digits, 1)
-        Transfer = np.zeros((MemNum, MemNum))
-        for Index in range(MemNum):
-            Transfer[Index, Sort[Index, :]] = 1
-        Ref = np.dot(Transfer, Hbest)
-        for Inner in range(MemNum):
-            base = Ref - mat.repmat(x0[Inner,:], MemNum, 1)
-            Normal = la.norm(base)
-            det = Normal.argmin()
-            base = np.delete(base, det, axis=0)
-            base = base[0:Digits,:]
-            if base.dtype != "float":
-                base = base.astype("float")
-            norm = la.norm(base,axis=1).reshape(Digits,1)
-            for index in range(Digits):
-                if norm[index, 0] == 0:
-                    base[index,:] = np.ones(Digits)
-                else:
-                    base[index,:] = base[index,:] / norm[index,0]
-            Hbelief = 2 * np.random.rand(1, Digits) - Bias * Chaos
-            Direction = np.dot(Hbelief, base)
-            Direction = Direction / la.norm(Direction)
-            Gbelief = np.random.logistic(T,(1-T)/3, Digits)
-            Dir[Inner,:] =np.abs(1 - Gbelief)  * Dir[Inner,:] + Gbelief * Direction
-            if Dir[Inner,:].dtype != "float64":
-                Dir = Dir.astype("float")
-            Dir[Inner,:] = Dir[Inner,:] / la.norm(Dir[Inner,:])
-            x0[Inner,:] = x0[Inner,:] + Pace * Dir[Inner,:]
-            Check = Evaluate(x0[Inner,:])
-            if Hbestv[Inner,:] > Check:
-                Hbest[Inner,:] = x0[Inner,:]
-                Hbestv[Inner,:] = Check
+        Chaos.reshape(1,Digits)
+        Ref = Hbest[Sort[:,0],:]
+        Hbelief = (2 * np.random.rand(MemNum, Digits) - Bias * Chaos).tolist()
+        Direction = np.array(list(map(Get_Direction, [Ref for _ in range(MemNum)], x0.tolist(), Hbelief)))
+        Direction = Direction / (la.norm(Direction,axis=1).reshape(MemNum,1))
+        Gbelief = np.random.logistic(T,min([1-T,T])/3, (MemNum,Digits))
+        Dir =np.abs(1 - Gbelief)  * Dir + Gbelief * Direction
+        if Dir.dtype != "float64":
+            Dir = Dir.astype("float")
+        Dir = Dir / (la.norm(Dir,axis=1).reshape(MemNum,1))
+        x0 = x0 + Pace * Dir
+        Check = np.array(list(map(Evaluate, x0))).reshape(MemNum, 1)
+        Place = np.where(Check - Hbestv < 0)
+        Hbestv[Place,:] = Check[Place,:]
+        Hbest[Place,:] = x0[Place,:]
         h = Hbest[np.argmin(Hbestv),:].tolist()
         print("MINE", i + 1)
         print("--------------------")
@@ -129,7 +119,7 @@ def MINE(Start: np.ndarray):
     H = np.array(H)
     value = H[:,Digits]
     value.reshape(1,Cycle)
-    return value,Hbestv.min(),Hbest[np.argmin(Hbestv),:]
+    return value,Hbestv.min(),Hbest[np.argmin(Hbestv),:]  
 
 def PSO(Start:np.ndarray):
     GroupNum = 300
@@ -201,8 +191,9 @@ def PSO(Start:np.ndarray):
     # plt.xlabel("Times")  
     # plt.ylabel("Value")
     return value,pbestv.min(),pbest[np.argmin(pbestv),:]
-
-VMINE,vMINE,LocMINE = MINE(500*np.ones((1,Digits)))
+t1 = time()
+VMINE, vMINE, LocMINE = MINE(500 * np.ones((1, Digits)))
+t2 = time()
 VPSO, vPSO, LocPSO = PSO(500 * np.ones((1, Digits)))
 plt.figure("Time-F(x)")
 MINE, =plt.plot(range(Cycle), VMINE,color='red',label="MINE")
@@ -212,6 +203,7 @@ print("Location:", LocMINE)
 print("=====================")
 print("Function:PSO ", "Evaluation:", vPSO)
 print("Location:", LocPSO)
+print("time",t2-t1)
 plt.legend(loc='upper right')
 plt.xlabel("times")  
 plt.ylabel("f(x)")
