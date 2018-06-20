@@ -32,6 +32,7 @@ def Get_Direction(Ref, x0, Hbelief):
 
 def MINE(Start: np.ndarray):
     a, b = 20, 10
+    alpha = 1.5
     # MemNum = 0
     x0 = mat.repmat(Start, MemNum, 1)
     Dir = a * np.random.rand(MemNum, Digits) - b
@@ -45,31 +46,35 @@ def MINE(Start: np.ndarray):
     for inner in range(MemNum):
         Hbestv[inner,:] = Evaluate(x0[inner,:])
         Hbest[inner,:] = x0[inner,:]
-    T0, Tend = 0.45, 0.7
-    A = (Tend - T0) / (Cycle ** 0.5)
-    B = T0
     H = []
-    Pace = np.std(Hbest, axis=0)
-    Pace = 3 * la.norm(Pace)
+    radius0 = np.std(Hbest, axis=0)
+    radius0 = la.norm(radius0)
+    Pace = 3 * radius0
     P = []
     R = []
     Po = []
     Ratio = []
     Bi = []
     Direction = np.zeros((MemNum, Digits))
+    APace = alpha * (1 + np.exp(alpha - 1))
     for i in range(Cycle):
-        radius = np.std(Hbest, axis=0)
+        radius1 = np.std(Hbest, axis=0)
         po = np.mean(Hbest,axis=0)
         Po.append(po)
-        radius = la.norm(radius)
-        T = B + A * (i ** 0.5)
-        Judge = 1 / (1 + np.exp(Pace /(radius+1e-15) - 1))
-        Pace = 4 * radius *Judge
+        radius1 = la.norm(radius1)
+        Judge = 1 / (1 + np.exp(Pace / (radius1 + 1e-15) - 1))
+        Trust = 1 / (1 + np.exp(alpha * Judge - 1))
+        print("ratio:",radius1/radius0)
+        print("Trust:",Trust)
+        print("Judge:",Judge)
+        Pace = APace * radius1 * Judge
+        Pace = alpha * (1 + np.exp(alpha - 1)) * radius1 * Judge
         Bias = 1.6 * Judge
-        Ratio.append(Pace / radius)
+        radius0 = radius1
+        Ratio.append(Pace / radius0)
         Bi.append(Bias)
         P.append(Pace)
-        R.append(radius)
+        R.append(radius0)
         Sort = np.argsort(Hbestv, axis=0)
         Chaos = 0.4 * np.random.random(Digits) + 0.8
         Chaos.reshape(1,Digits)
@@ -77,7 +82,7 @@ def MINE(Start: np.ndarray):
         Hbelief = (2 * np.random.rand(MemNum, Digits) - Bias * Chaos).tolist()
         Direction = np.array(list(map(Get_Direction, [Ref for _ in range(MemNum)], x0.tolist(), Hbelief)))
         Direction = Direction / (la.norm(Direction,axis=1).reshape(MemNum,1))
-        Gbelief = np.random.logistic(T,min([1-T,T])/3, (MemNum,Digits))
+        Gbelief = np.random.normal(Trust,min([1-Trust,Trust])/3, (MemNum,Digits))
         Dir =np.abs(1 - Gbelief)  * Dir + Gbelief * Direction
         if Dir.dtype != "float64":
             Dir = Dir.astype("float")
@@ -117,7 +122,7 @@ def MINE(Start: np.ndarray):
     H = np.array(H)
     value = H[:,Digits]
     value.reshape(1,Cycle)
-    return value,Hbestv.min(),Hbest[np.argmin(Hbestv),:]  
+    return value,Hbestv.min(),Hbest[np.argmin(Hbestv),:]
 
 def PSO(Start:np.ndarray):
     GroupNum = 300

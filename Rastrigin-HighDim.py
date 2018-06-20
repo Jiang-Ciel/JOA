@@ -32,7 +32,8 @@ def Get_Direction(Ref, x0, Hbelief):
     base = base / Normal
     return np.dot(np.array(Hbelief), base).reshape(Digits,)
 
-a, b = 20, 10
+def MINE(Start: np.ndarray):
+    a, b = 20, 10
     alpha = 1.5
     # MemNum = 0
     x0 = mat.repmat(Start, MemNum, 1)
